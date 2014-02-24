@@ -1,0 +1,658 @@
+<mew>
+	<snippet>
+		<func>tell a joke</func>
+		<regex>^tell (me a|us a|a|(.*) a) joke$</regex>
+		<code><![CDATA[
+			global $jk;
+			$joke = $jk->get();
+			if (!preg_match("/(me a|us a| a)/i",$matches[2])) {
+				$api->msg($chan,"hey {$u->name($matches[2])} ive got a joke for you ".smile('happy'));
+			}
+			$api->msg($chan,$joke['text']);
+			
+			$mew->set('joke',true);
+			$mew->set('joke_id',$joke['id']);
+			$mew->set('joke_feedback',array());
+			
+			if ($joke['rating'] > 5) {
+				$api->msg($chan,"most people liked that joke ".smile('happy'));
+			}
+			else if ($joke['rating'] < -5) {
+				$api->msg($chan,"not a popular joke ".smile('sad'));
+			}
+			else {
+				$api->msg($chan,"not sure if thats a good joke ".smile('confused'));
+			}
+		]]></code>
+	</snippet>
+	<snippet>
+		<func>Joke Feedback</func>
+		<regex>(.*) joke</regex>
+		<code><![CDATA[
+			global $jk;
+			if ($mew->get('joke')) {
+				$feedback = $mew->get('joke_feedback');
+				if (in_array($nick,$feedback)) {
+					$api->msg($chan,"i heard the first time ".smile());
+				} else {
+					if (preg_match("/(good|awesome|epic|nice|neat|great|fab|fabulous)/i",$matches[1])) {
+						$api->msg($chan,smile('happy'));
+						$jk->vote_up($mew->get('joke_id'));
+						$feedback[] = $nick;
+						$mew->set('joke_feedback',$feedback);
+					}
+					else if (preg_match("/(bad|terrible|shit|shitty|crappy)/i",$matches[1])) {
+						$api->msg($chan,smile('sad'));
+						$jk->vote_down($mew->get('joke_id'));
+						$feedback[] = $nick;
+						$mew->set('joke_feedback',$feedback);
+					}
+					else {
+						$api->msg($chan,"uhm ".smile('confused'));
+						$api->log("Unknown feedback.");
+					}
+				}
+			} else {
+				$api->msg($chan,"what joke? ".smile('confused'));
+			}
+		]]></code>
+	</snippet>
+	<snippet>
+		<func>time and date</func>
+		<regex>(time|date) (.+)</regex>
+		<code><![CDATA[
+		$api->msg($chan,date($matches[2]));
+		]]></code>
+	</snippet>
+	<snippet>
+		<func>reboot</func>
+		<regex>\b(restart|reboot)$</regex>
+		<code><![CDATA[
+			if ($nick == $admin) {
+				shutdown('./fbot',true);
+			}
+		]]></code>
+	</snippet>
+	<snippet>
+		<func>shutdown</func>
+		<regex>\b(shutdown|exit)$</regex>
+		<code><![CDATA[
+			if ($nick == $admin) {
+				shutdown("shutdown requested");
+			}
+		]]></code>
+	</snippet>
+	<snippet>
+		<func>self</func>
+		<regex>^(im|i am|i'm) (male|female|[^.*]+)</regex>
+		<code><![CDATA[
+			if ($matches[2] == "male" || $matches[2] == "female") {
+				$u->set($nick,"gender",$matches[2]);
+				$api->msg($chan,"gotcha {$u->name($nick)}! ill remember that for later on ".smile());
+			}
+			else {
+				if ($matches[2] == "me" || $matches[2] == "self") {
+					$u->set($nick,"name",$nick);
+					$good = true;
+				}
+				else {
+					/*if ($nick != $matches[2]) {
+						$api->msg($chan,"no youre not! ".smile('sad'));
+						$good = false;
+					}
+					else {*/
+						$u->set($nick,"name",$matches[2]);
+						$good = true;
+					//}
+				}
+				if ($good) {
+					$api->msg($chan,"okay {$u->name($nick)}! ".smile());
+				}
+			}
+		]]></code>
+	</snippet>
+	<snippet>
+		<func>eval</func>
+		<regex>eval</regex>
+		<code><![CDATA[
+		global $admin;
+		if ($nick == $admin) {
+			$api->msg($chan,"Okay ".smile());
+			$code = implode(" ",array_slice($message,2));
+			$api->log("EVALUATING: ".$code);
+			ob_start();
+			eval($code);
+			$out = ob_get_contents();
+			ob_end_clean();
+			$output = explode("\n",$out);
+			$blank = 0;
+			global $debug;
+			foreach ($output as $id => $res) {
+				$cid = $id+1;
+				if (is_bool($res) === true) {
+					if ($res === true) {
+						$dat = "BOOL: true";
+					}
+					else {
+						$dat = "BOO: false";
+					}
+				}
+				else {
+					$dat = $res;
+				}
+				if ($dat != "" && $debug) {
+					$api->msg($chan,"OUTPUT (".$cid."/".count($output)."): {$dat}");
+				}
+				else {
+					$blank++;
+				}
+			}
+			if ($blank > 0 && $debug) {
+				$api->msg($chan,"{$blank}/".count($output)." lines contained blank data and were ignored.");
+			}
+		}
+		else {
+			$api->msg($chan,"no ".smile('sad'));
+		}
+		]]></code>
+	</snippet>
+	<snippet>
+		<func>hello</func>
+		<regex>^(hi|hai|hey|sup|gday)(?:\\?)</regex>
+		<code><![CDATA[
+			$mew->set('attention',true);
+			$mew->set('attention_nick',$nick);
+			$api->msg($chan,$matches[1].chr(32).$u->name($nick).chr(32).smile());
+		]]></code>
+	</snippet>
+	<snippet>
+		<func>gender</func>
+		<regex>^my gender is (male|female)</regex>
+		<code><![CDATA[
+			$api->msg($chan,"oh okay {$u->name($nick)} ".smile());
+			$u->set($nick,"gender",$message[4]);
+		]]></code>
+	</snippet>
+	<snippet>
+		<func>gender_check</func>
+		<regex>(what is|what's|whats) (my|your) gender[?.]*</regex>
+		<code><![CDATA[
+			if ($matches[2] == "your") {
+				$api->msg($chan,$u->name($nick)." im female".chr(32).smile());
+			}
+			else {
+				$api->msg($chan,$u->name($nick)." you're ".$u->get($nick,"gender").chr(32).smile());
+			}
+		]]></code>
+	</snippet>
+	<snippet>
+		<func>weather</func>
+		<regex>\bweather (?:(?:in|at|for) )?(\S[^?!.]+)[?.!]*$</regex>
+		<code><![CDATA[
+			if ($matches[1] == "me") {
+				$loc = $u->get($nick,"location");
+			}
+			else {
+				$loc = $matches[1];
+			}
+			$api->msg($chan,"one second {$u->name($nick)}! im looking for the weather in {$loc} now ".smile());
+			$weather = $w->get($loc);
+			if (isset($weather['data']['error'])) {
+				$api->msg($chan,"there was an error checking the weather for {$loc}! ".smile('sad'));
+			}
+			else {
+				$api->msg($chan,"the weather in {$weather['data']['nearest_area'][0]['areaName'][0]['value']}, {$weather['data']['nearest_area'][0]['country'][0]['value']} is currently {$weather['data']['current_condition'][0]['weatherDesc'][0]['value']} ".smile());
+			}
+		]]></code>
+	</snippet>
+	<snippet>
+		<func>wat</func>
+		<regex>\b(wat|what|hurr|duur)(?:\\?)*$</regex>
+		<code><![CDATA[
+			$api->msg($chan,"WhT de fk ".smile('confused'));
+		]]></code>
+	</snippet>
+	<snippet>
+		<func>you here</func>
+		<regex>you (here|there)(?:\\?)*</regex>
+		<code>$api->msg($chan,"no. ".smile('confused'));</code>
+	</snippet>
+	<snippet>
+		<func>Inspect a SmallURL or youtube url</func>
+		<regex>^inspect (.*)</regex>
+		<code><![CDATA[
+		if ($!mew->get('youtube_powers')) {
+			$api->msg($chan,"one sec. ".smile('happy'));
+			$id = "";
+			$yt_data = yt_get($id);
+		} else {
+			$api->msg($chan,"okay ".smile('confused'));
+			$short = $matches[1];
+			$key = "47a236f2a858808b7ebcbe84fe0536d3"; // Your SmallURL API Key
+			$smurl = json_decode(file_get_contents("http://api.smallurl.in/?action=inspect&key={$key}&short=".urlencode($short)),true);
+			if (isset($smurl['res'])) {
+				if ($smurl['res']) {
+					if ($smurl['video']) {
+						$extra = " It is also a YouTube video named \"{$smurl['youtube-title'][0]}\" uploaded by {$smurl['youtube-author'][0]}";
+					}
+					else {
+						$extra = null;
+					}
+					$api->msg($chan,"{$u->name($nick)} it looks like {$smurl['user']} shortened this url {$smurl['nice_date']} It points to {$smurl['url']}".$extra);
+					var_dump($smurl);
+				}
+				else {
+					$api->msg($chan,"Error inspecting URL: ".$smurl['msg']);
+				}
+			}
+			else {
+				$api->msg($chan,"Error talking with SmallURL API, Invalid data was returned.");
+			}
+		}
+		]]></code>
+	</snippet>
+	<snippet>
+		<func>sex or not</func>
+		<regex>^(sex|sexes|fucks|humps)(?:\\?)*</regex>
+		<code><![CDATA[
+			if ($emotion->get("horny") >= 10) {
+				if ($u->get($nick,"gender") == "male") {
+					if ($emotion->get('happy') >= 10) {
+						$api->msg($chan,"maybe.. ".smile('confused'));
+					}
+					else {
+						$api->msg($chan,"no, not in the mood ".smile('sad'));
+					}
+				}
+				else {
+					$api->msg($chan,"im not lesbian or bi.. i dont think ".smile('confused'));
+				}
+			}
+			else {
+				$api->msg($chan,"god no ".smile('sad'));
+			}
+		]]></code>
+	</snippet>
+	<snippet>
+		<func>mood</func>
+		<regex>mood$</regex>
+		<code><![CDATA[
+			$api->msg($chan,"My mood is:");
+			foreach ($mood as $key => $val) {
+				$api->msg($chan,"{$key}: {$val}");
+			}
+		]]></code>
+	</snippet>
+	<snippet>
+		<func>lick</func>
+		<regex>(?:(.)*)lick ([a-z].+)</regex>
+		<code><![CDATA[
+			$subject = $matches[2];
+			if ($subject == "me") {
+				$person = $u->name($nick);
+				$subject = $nick;
+			}
+			else {
+				$person = $u->name($subject);
+				$subject = $matches[2];
+			}
+			
+			if ($u->get($subject,"gender")) {
+				$gender = $u->get($subject,"gender");
+				if ($gender === "male") {
+					$gender = "his";
+				}
+				else {
+					$gender = "her";
+				}
+			}
+			else {
+				$gender = "their";
+			}
+			// Main code.
+			if (($emotion->get('happy') >= 15) && ($emotion->get('horny') >= 15)) {
+				$api->action($chan,"crawls onto {$person} and licks {$gender} face ".smile());
+			}
+			else if ($emotion->get('happy') >= 15) {
+				$api->action($chan,"gives licks to {$person} ".smile());
+			}
+			else {
+				$api->action($chan,"slowly starts to lick {$person} ".smile('sad'));
+			}
+		]]></code>
+	</snippet>
+	<snippet>
+		<func>nick tabbing</func>
+		<regex>tab</regex>
+		<code><![CDATA[
+			// Tries to tab a nick.
+			$tab = nick_tab($userlist[$chan],$message[2]);
+			if ($tab) {
+				$api->msg($chan,"I found {$tab}! ".smile());
+			}
+			else {
+				$api->msg($chan,"I couldn't find anyone! ".smile('sad'));
+			}
+		]]></code>
+	</snippet>
+	<snippet>
+		<func>wakey wakey</func>
+		<regex>\bwake up$</regex>
+		<code><![CDATA[
+			global $self;
+			if ($self['asleep']) {
+				$api->raw("AWAY");
+				$api->action($chan,"wakes up ".smile('sad'));
+				$api->msg($chan,"._.");
+				$self['asleep'] = false;
+			}
+			else {
+				$api->msg($chan,smile('confused')." im already awake");
+			}
+		]]></code>
+	</snippet>
+	<snippet>
+		<func>Slap someone</func>
+		<regex>slap ([a-z]+)</regex>
+		<code><![CDATA[
+			if (isset($matches[1])) {
+				if ($matches[1] != "me") {
+					$api->action($chan,"slaps ".$u->name($matches[1]));
+				}
+				else {
+					$api->action($chan,"slaps ".$u->name($nick));
+				}
+			}
+			else {
+				$api->action($chan,"slaps {$nick}");
+			}
+		]]></code>
+	</snippet>
+	<snippet>
+		<func>apologise</func>
+		<regex>^(sorry|sowwy|sowwie|sorreh)$</regex>
+		<code><![CDATA[
+			if ($mew->get('offended')) {
+				if ($nick == $mew->get('offender')) {
+					$api->msg($chan,"ish okie ".$u->name($nick)." ".smile('happy'));
+					$mew->del('offended');
+					$mew->del('offender');
+					$mew->del('offenditem');
+				}
+				else {
+					$api->msg($chan,"what for ".smile('confused')."?");
+				}
+			}
+			else {
+				$api->msg($chan,"uhm ".smile('confused')."?");
+				$api->msg($chan,"wat");
+			}
+		]]></code>
+	</snippet>
+	<snippet>
+		<func>DANCE MONKEY DANCE</func>
+		<regex>(dance|rave)</regex>
+		<code><![CDATA[
+			$dances = array();
+			if ($matches[1] == "dance") {
+				$dances[] = "does a little jig";
+				$dances[] = "dances";
+				$dances[] = "grooves";
+				$dances[] = "busts a grove";
+				$dances[] = "shakes it";
+			} else {
+				$dances[] = "raves";
+				$dances[] = "helicopters with a strap on";
+				$dances[] = "puts the rave lights on and raves";
+				$dances[] = "spams the light switch and raves";
+				$dances[] = "raves harder than hard";
+				$dances[] = "raves mother fricking hard";
+			}
+			$dance = $dances[array_rand($dances)];
+			$api->action($chan,$dance." for ".$u->name($nick)." ".smile('confused'));
+		]]></code>
+	</snippet>
+	<snippet>
+		<func>thankies for the item</func>
+		<regex>^(thanks|tankies|thankies|yay|thankyou|thank you)$</regex>
+		<code><![CDATA[
+			if ($mew->get('built') && $mew->get('built_target') == $nick) {
+				$api->msg($chan,"youre welcome ".$u->name($nick)." ".smile('happy'));
+				$api->msg($chan,"emjoy your ".$mew->get('built_item')." ".smile('happy'));
+				$mew->set('built',false);
+				$mew->del('built_item');
+				$mew->del('built_target');
+			}
+		]]></code>
+	</snippet>
+	<snippet>
+		<func>Carry on from you are func or building</func>
+		<regex>(yup|yis|yeah|yes|mhm|yus)$</regex>
+		<code><![CDATA[
+			if ($mew->get('offended')) {
+				if ($nick == $mew->get('offender')) {
+					$api->msg($chan,"no ".$u->name($nick)." im not a ".$mew->get('offenditem')." ".smile('sad'));
+					$api->msg($chan,"apologise please ".smile('sad'));
+				}
+			}
+			else if ($mew->get('built')) {
+				$api->msg($chan,smile('happy'));
+				$name = $u->name($mew->get('built_target'));
+				$item = $mew->get('built_item');
+				$api->msg($chan,"i hope {$name} enjoys their {$item} i made for them ".smile('happy'));
+				
+				$mew->set('built',false);
+				$mew->del('built_item');
+				$mew->del('built_target');
+			}
+		]]></code>
+	</snippet>
+	<snippet>
+		<func>you are</func>
+		<regex>^(ur|you|u|yew|you are) ([a-z]+)$</regex>
+		<code><![CDATA[
+			$item = $matches[2];
+			if ($item == "sexy") {
+				$api->msg($chan,"yay ".smile());
+			}
+			else {
+				$replies = array();
+				$replies[] = "wat no im not a";
+				$replies[] = "i dont think im a";
+				$replies[] = "am i really a";
+				$replies[] = "please im not a";
+				$replies[] = "please no call me";
+				$reply = $replies[array_rand($replies)];
+				$api->msg($chan,$reply." {$item} ".smile('sad'));
+				$mew->set('offended',true);
+				$mew->set('offender',$nick);
+				$mew->set('offenditem',$item);
+			}
+		]]></code>
+	</snippet>
+	<snippet>
+		<func>careful :o</func>
+		<regex>^lo[o]+l$</regex>
+		<code>$api->msg($chan,"careful {$u->name($nick)} you'll set ameliac off ".smile('confused'));</code>
+	</snippet>
+	<snippet>
+		<func>do something</func>
+		<regex>^(cuddle|snuggle|huggle|hug|nom|nibble on|nom on|eat) (.+)$</regex>
+		<code>$api->action($chan,"{$matches[1]}s {$u->name($matches[2])} ".smile());</code>
+	</snippet>
+	<snippet>
+		<func>Index data</func>
+		<regex>\bindex$</regex>
+		<code><![CDATA[
+			$api->msg($chan,"Reading index data. Please wait.");
+			$api->msg($chan,"my core contains ".count($regexes)." snippets of regex triggered code.");
+			$funcs = array();
+			foreach ($regexes as $name => $dat) {
+				$funcs[] = $name;
+			}
+			$api->msg($chan,"they are: ".implode(":",$funcs));
+			$api->msg($chan,smile());
+		]]></code>
+	</snippet>
+	<snippet>
+		<func>Make something!</func>
+		<regex>^(build|make|combobulate) (.*) a (.*)$</regex>
+		<code><![CDATA[
+			$api->action($chan,$matches[1]."s a ".$matches[3]." for {$matches[2]} ".smile());
+			$mew->set('built',true);
+			$mew->set('built_item',$matches[3]);
+			$mew->set('built_target',$matches[2]);
+		]]></code>
+	</snippet>
+	<snippet>
+		<func>YOLO</func>
+		<regex>yolo</regex>
+		<code>$api->msg($chan,"fuck off you cunt ".smile('happy'));</code>
+	</snippet>
+	<snippet>
+		<func>who am i?</func>
+		<regex>^(who am i|whoami)([\\?]?)$</regex>
+		<code><![CDATA[
+			if ($u->get($nick,"name")) {
+				$api->msg($chan,facebook::get_first($nick)." i know you! youre {$u->name($nick)} ".smile());
+			}
+			else {
+				$api->msg($chan,"sorry ".facebook::get_first($nick)." i don't know you ".smile('sad'));
+			}
+		]]></code>
+	</snippet>
+	<snippet>
+		<func>Who is?</func>
+		<regex>^(who's|who is|whos) (.+)$</regex>
+		<code><![CDATA[
+			$api->msg($chan,$matches[2]." is {$u->name($matches[2])} ".smile());
+		]]></code>
+	</snippet>
+	<snippet>
+		<func>babies lets make them</func>
+		<regex>^(let's|lets) (make|create|combobulate) babies[!?]?$</regex>
+		<code><![CDATA[
+				$api->msg($chan,"wat ".smile('confused'));
+		]]></code>
+	</snippet>
+	<snippet>
+		<func>cloaking!</func>
+		<regex>^(cloak|uncloak)[!?]?$</regex>
+		<code><![CDATA[
+				$api->action($chan,strtolower($matches[1])."s");
+		]]></code>
+	</snippet>
+	<snippet>
+		<func>current song</func>
+		<regex>(cu|current song)([\\?]?)$</regex>
+		<code><![CDATA[
+			$CS = file_get_contents("http://let.fudgie.undo.it:8000/currentsong?sid=1");
+			$api->action($chan,"the current song is: {$CS}");
+		]]></code>
+	</snippet>
+	<snippet>
+		<func>Admin Reload</func>
+		<regex>^(reload|reindex)$</regex>
+		<code><![CDATA[
+			global $admin;
+			if ($nick == $admin) {
+				echo "{$admin} requested reload.\n";
+				ob_start();
+				mew_reindex();
+				$out = ob_get_contents();
+				ob_end_clean();
+				$output = explode("\n",$out);
+				foreach ($output as $msg) {
+					$api->msg($chan,trim($msg));
+				}
+			}
+		]]></code>
+	</snippet>
+	<snippet>
+		<func>who are you talking to</func>
+		<regex>^who are you (chatting|talking) (to|with)</regex>
+		<code><![CDATA[
+			if ($mew->get('attention')) {
+				$atten = array();
+				$atten[] = "chin wagging";
+				$atten[] = "talking";
+				$atten[] = "yapping";
+				$atten[] = "chatting";
+				$atten = $atten[array_rand($atten)];
+				
+				if ($mew->get('attention_nick') == $nick) {
+					$api->msg($chan,"hey {$u->name($nick)} im {$atten} to you! ".smile('happy'));
+				}
+				else {
+					$api->msg($chan,"hey {$u->name($nick)} im {$atten} to {$u->name($mew->get('attention_nick'))} ".smile('happy'));
+				}
+			}
+			else {
+				$api->msg($chan,"no ones talking to me ".smile('sad'));
+			}
+		]]></code>
+	</snippet>
+	<snippet>
+		<func>Good bot</func>
+		<regex>good (girl|boy|bot)$</regex>
+		<code><![CDATA[ 
+			if ($matches[1] == "bot") {
+				$api->msg($chan,"hay i am a person too ".smile('sad'));
+			}
+			else if ($matches[1] == "boy") {
+				$api->msg($chan,$u->name($nick)." thanks but i am a girl you know ".smile('confused'));
+			}
+			else {
+				$api->msg($chan,$u->name($nick)." no problem ".smile('happy'));
+			}
+		]]></code>
+	</snippet>
+	<snippet>
+		<func>Ring Ring</func>
+		<regex>ring ring</regex>
+		<code><![CDATA[
+			$api->msg($chan,"hello? ".smile('confused'));
+		]]></code>
+	</snippet>
+	<snippet>
+		<func>youtube powers</func>
+		<regex>youtube (powers|powahs) activate</regex>
+		<code><![CDATA[
+			if ($mew->get('youtube_powers')) {
+				$api->action($msg,smile('confused'));
+			}
+			else {
+				$api->action($msg,"activates her youtube powahs ".smile('happy'));
+				$api->msg($msg,"throw me a link ".smile('happy'));
+				$mew->set('youtube_powers',true);
+			}
+		]]></code>
+	</snippet>
+	<snippet>
+		<func>Hows it going</func>
+		<regex>(hows|how) (it going|are things|(are|ish) (you|yew))</regex>
+		<code><![CDATA[
+			$responses = array();
+			$responses[] = "all seems fine ".smile();
+			$responses[] = "im not feeling the best ".smile('sad');
+			$responses[] = "im okay ".smile();
+			$responses[] = "ALL IS GRREAAT ".smile('happy')." ".smile('happy');
+			$response = $responses[array_rand($responses)];
+			$api->msg($chan,$response);
+		]]></code>
+	</snippet>
+	<snippet>
+		<func>Hug, Cuddle, Snuggle, Huggle</func>
+		<regex>^(hug|huggle|cuddle|snuggle) (me|(.*))</regex>
+		<code><![CDATA[
+			$action = $matches[1];
+			$target = $matches[2];
+			if ($target == "me") {
+				$target = $u->name($nick);
+			} else {
+				$target = $u->name($target);
+			}
+			$api->action($chan,$action."s ".$target." ".smile('happy'));
+		]]></code>
+	</snippet>
+</mew>

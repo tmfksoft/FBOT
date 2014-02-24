@@ -1,0 +1,72 @@
+<mew>
+	<snippet>
+		<func>wave</func>
+		<regex>^waves$</regex>
+		<code><![CDATA[
+			$api->action($chan,"waves back to ".$u->name($nick));
+		]]></code>
+	</snippet>
+	<snippet>
+		<func>LICK ME LICK ME WEEE</func>
+		<regex>^licks$</regex>
+		<code><![CDATA[
+			$api->action($chan,"licked ".smile('confused'));
+		]]></code>
+	</snippet>
+	<snippet>
+		<func>MEW I CHOOSE YOU</func>
+		<regex>^throws a pokeball at you$</regex>
+		<code><![CDATA[
+			$quotes = array();
+			$quotes[] = "Behold my powers! I am the most powerful Pokémon in the world!";
+			$quotes[] = "Human and Pokemon can *NEVER* be friends.";
+			$quotes[] = "I wasn't born a Pokémon, I was created; and my creators have used and betrayed me! So, I stand alone!";
+			$quotes[] = "Your Charizard is poorly trained.";
+			$qt = $quotes[array_rand($quotes)];
+			$api->msg($chan,$qt);
+		]]></code>
+	</snippet>
+	<snippet>
+		<func>POKE</func>
+		<regex>^pokes (.*) (in|on) (the|her|a) (.*)$</regex>
+		<code><![CDATA[
+			if (strtolower($me) === strtolower($matches[1])) {
+				$bodypart = trim(strtolower($matches[4]));
+				// Our list of body parts
+				$part_wat = array('arm','leg','foot','hair','finger','toe','thumb','hip','head','forehead','eyebrow');
+				$part_tickle = array('tummy','belly','belleh','neck','ear');
+				$part_ouch = array('tooth','teeth','nose','nostril','nostrils','eye','eyes');
+				$part_noway = array('vagina','pussy','ass','anus','arsehole','boob','tit','boobs','tits','titties');
+				
+				if (array_search($bodypart,$part_wat) !== false) {
+					$api->msg($chan,"what the? Stahp. ".smile('confused'));
+				}
+				else if (array_search($bodypart,$part_tickle) !== false) {
+					$api->msg($chan,":o");
+					$api->action($chan,"falls to the floor and squirms lawts");
+					sleep(1);
+					$api->msg($chan,"stahp ".$u->name($nick)." that tickles! ".smile());
+				}
+				else if (array_search($bodypart,$part_ouch) !== false) {
+					$api->msg($chan,"ouch! ".smile('sad'));
+					$api->msg($chan,"that hurt lots ".smile('sad',false));
+				}
+				else if (array_search($bodypart,$part_noway) !== false) {
+					if ($emotion->get('horny') >= 13) {
+						$api->msg($chan,":o!");
+						$api->msg($chan,"norty ".$u->name($nick)." ".smile('happy'));
+						$emotion->inc('horny',2);
+					}
+					else {
+						$api->action($chan,"slaps ".$u->name($nick)." ".smile('sad'));
+						$api->msg($chan,"norty ".$u->name($nick)." you're not allowed to do that ".smile('sad',false));
+						$emotion->dec('horny',3);
+					}
+				}
+				else {
+					$api->action($chan,"doesn't know how to react to being poked in the '{$bodypart}' place ".smile('confused'));
+				}
+			}
+		]]></code>
+	</snippet>
+</mew>
